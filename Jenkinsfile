@@ -1,7 +1,10 @@
 
 pipeline {
     agent any
-
+    
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+    }
     stages {
         stage('SCM Checkout') {
             steps {
@@ -17,11 +20,10 @@ pipeline {
         }
         stage('Login to Docker Hub') {
             steps {
-               withCredentials([string(credentialsId: 'dockerhub-token', variable: 'DOCKERHUB_TOKEN')]) {
-                sh 'echo DOCKERHUB_TOKEN | docker login -u ravi943 --password-stdin'
+               sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
             }
           }
-        }
+        
         stage('Push Image'){
             steps{
                 sh 'docker push ravi943/docker-cuban:v1.0'
