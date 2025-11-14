@@ -1,37 +1,141 @@
-# CI/CD Pipeline with Docker and Jenkins
+## Install Jenkins locally(Ubuntu)
 
-This repository contains code for setting up a Continuous Integration/Continuous Deployment (CI/CD) pipeline using Docker and Jenkins. The pipeline automates the process of building, testing, and deploying applications, ensuring efficiency and consistency in software development workflows.
+```bash
+sudo apt update
+sudo apt install fontconfig openjdk-21-jre
+java -version
+```
+You can enable the Jenkins service to start at boot with the command and run jenkins:
 
-## Requirements
+```bash
+sudo systemctl enable jenkins
+```
+check - http://localhost:8080
 
-- GitHub account
-- Jenkins server
-- DockerHub account
-- Docker installed on Jenkins server
+## Create Docker Hub Access Token
 
-## Overview
+1.Go to Docker Hub and login
 
-The CI/CD pipeline involves the following steps:
+2.Click on your profile icon (top right) → Account Settings
 
-1. **GitHub Push**: The process begins when code changes are pushed to the GitHub repository.
-2. **Jenkins Build Trigger**: Jenkins, our automation server, is configured to monitor the GitHub repository for changes. Upon detecting a new commit, Jenkins triggers the build process.
-3. **Docker Image Creation**: Jenkins pulls the base Docker image from DockerHub and builds a Docker image containing the application and its dependencies.
-4. **Docker Image Push**: Once the Docker image is built successfully, Jenkins pushes the image to DockerHub, making it available for deployment.
-5. **Update Status**: Jenkins updates the build status on GitHub, providing visibility into the CI/CD process.
-6. **Notification**: Users are notified of the build status through GitHub notifications.
+3.Go to Security → New Access Token
 
-## Getting Started
+4.Give it a name (example: "jenkins-token")
 
-To set up the CI/CD pipeline in your environment, follow these steps:
+5.Click Generate
 
-1. **Clone Repository**: Clone this repository to your local machine using the following command:
-   ```
-       https://github.com/RavinduRasara/CICD-Jenkins-Docker-Github-1.git
-   ```
-2. **Configure Jenkins**: Set up Jenkins on your server and configure it to monitor the GitHub repository for changes. Install necessary plugins like Docker Pipeline Plugin.
-3. **Set Up DockerHub**: Ensure you have an account on DockerHub where Jenkins can push Docker images. 
-4. **Configure Pipeline**: In Jenkins, create a new pipeline job and configure it to use the provided Jenkinsfile in this repository.
-5. **Trigger Build**: Trigger a build manually or make a code change in the repository to initiate the CI/CD pipeline.
+6.COPY THE TOKEN (you'll only see it once!) - Save it somewhere safe
+
+## Add Credentials to Jenkins
+
+1.Open Jenkins: http://localhost:8080
+
+2.Click Manage Jenkins (left sidebar)
+
+3.Click Manage Credentials
+
+4.Click (global) domain
+
+5.Click Add Credentials (left side)
+
+6.Fill in:
+
+● Kind: Username with password
+
+● Username: Your Docker Hub username 
+
+● Password: Paste the token you copied from Docker Hub
+
+● ID: dockerhub-credentials (this is important! We'll use this in Jenkinsfile)
+
+● Description: Docker Hub Token
+
+## Jenkinsfile
+
+```bash
+pipeline {
+    agent any
+    
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+    }
+    
+    stages {
+        stage('SCM Checkout') {
+            steps {
+                retry(3) {
+                    git branch: 'main', url:'https://github.com/RavinduRasara/CICD-Jenkins-Docker-Github-1'
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t #####/docker-cuban:v1.0 .'
+            }   
+        }
+        
+        stage('Login to Docker Hub') {
+            steps {
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+            }
+        }
+        
+        stage('Push Image'){
+            steps{
+                sh 'docker push #####/docker-cuban:v1.0'
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'docker logout'
+        }
+    }
+}
+```
+
+What This Does (Simple Explanation):
+
+**environment**: Loads your Docker Hub credentials that you saved in Jenkins
+
+**DOCKERHUB_CREDENTIALS_USR**: Automatically gets your username
+
+**DOCKERHUB_CREDENTIALS_PSW**: Automatically gets your token/password
+
+**echo $DOCKERHUB_CREDENTIALS_PSW | docker login...**: Logs into Docker Hub securely
+
+post always: Always logout after pipeline finishes (security best practice)
+
+## DockerFile
+
+```bash
+FROM node:latest
+WORKDIR /usr/src/app
+COPY nodeapp/* ./
+RUN npm install
+EXPOSE 3000
+CMD [ "npm", "start" ]
+```
+## Give Jenkins Permission to Run Docker
+Run these commands in your Ubuntu terminal:
+```bash
+# Add jenkins user to docker group
+sudo usermod -aG docker jenkins
+
+# Restart Jenkins
+sudo systemctl restart jenkins
+
+# Restart Docker (optional, but recommended)
+sudo systemctl restart docker
+
+# Switch to jenkins user
+sudo su - jenkins
+
+# Try running docker command
+docker ps
+```
 
 
 
