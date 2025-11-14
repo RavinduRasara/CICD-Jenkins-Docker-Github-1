@@ -1,3 +1,7 @@
+## System diagram
+![image1](image1.png)
+
+
 ## Install Jenkins locally(Ubuntu)
 
 ```bash
